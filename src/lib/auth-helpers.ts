@@ -14,18 +14,13 @@ export async function getSession() {
     cookieStore.get("__Secure-better-auth.session_token")?.value ||
     cookieStore.get("better-auth.session_token")?.value;
 
-  console.log("[AUTH DEBUG] Cookie token:", cookieToken ? "EXISTS" : "MISSING");
-  console.log("[AUTH DEBUG] All cookies:", cookieStore.getAll().map(c => c.name));
-
   if (!cookieToken) {
-    console.log("[AUTH DEBUG] No session token cookie found");
     return null;
   }
 
   // Better Auth uses signed tokens in format: sessionId.signature
   // The database stores only the sessionId (first part before the dot)
   const sessionToken = cookieToken.split('.')[0];
-  console.log("[AUTH DEBUG] Session token (first part):", sessionToken);
 
   try {
     const [session] = await db
@@ -37,14 +32,9 @@ export async function getSession() {
       ))
       .limit(1);
 
-    console.log("[AUTH DEBUG] Session found in DB:", !!session);
-    if (session) {
-      console.log("[AUTH DEBUG] Session user:", session.userId);
-    }
-
     return session;
   } catch (error) {
-    console.error("[AUTH DEBUG] Error getting session:", error);
+    console.error("Error getting session:", error);
     return null;
   }
 }
@@ -90,23 +80,16 @@ export async function requireAuth() {
  * Require user to be approved - throws if not approved
  */
 export async function requireApproved() {
-  console.log("[AUTH DEBUG] requireApproved called");
   const session = await requireAuth();
-  console.log("[AUTH DEBUG] Session after requireAuth:", !!session);
-
   const user = await getUser();
-  console.log("[AUTH DEBUG] User after getUser:", user ? user.email : "NO USER");
 
   if (!user) {
-    console.log("[AUTH DEBUG] No user, redirecting to sign-in");
     redirect("/sign-in");
   }
 
   if (!user.isApproved) {
-    console.log("[AUTH DEBUG] User not approved, redirecting to pending-approval");
     redirect("/pending-approval");
   }
 
-  console.log("[AUTH DEBUG] User approved, access granted");
   return { session, user };
 }

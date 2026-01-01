@@ -13,6 +13,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { Upload, FileUp, CheckCircle2, AlertCircle } from "lucide-react";
+import { processCsvFileClient } from "@/lib/csv-processor-client";
 
 export function CsvUpload() {
   const [file, setFile] = useState<File | null>(null);
@@ -77,12 +78,31 @@ export function CsvUpload() {
     setUploadResult(null);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      // Step 1: Process CSV client-side
+      toast.info("Processing CSV file...");
+      const result = await processCsvFileClient(file);
 
-      const response = await fetch("/api/upload", {
+      if (!result.success || !result.aggregatedData) {
+        setUploadResult({
+          success: false,
+          message: "Failed to process CSV",
+          warnings: result.errors,
+        });
+        toast.error("Failed to process CSV");
+        return;
+      }
+
+      // Step 2: Send aggregated data to server
+      toast.info("Uploading aggregated data...");
+      const response = await fetch("/api/upload-aggregated", {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          aggregatedData: result.aggregatedData,
+          stats: result.stats,
+        }),
       });
 
       const data = await response.json();
@@ -92,9 +112,9 @@ export function CsvUpload() {
           success: true,
           message: data.message,
           stats: data.stats,
-          warnings: data.warnings,
+          warnings: result.errors && result.errors.length > 0 ? result.errors : undefined,
         });
-        toast.success("CSV uploaded and processed successfully!");
+        toast.success("CSV processed and uploaded successfully!");
         setFile(null);
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
@@ -102,10 +122,9 @@ export function CsvUpload() {
       } else {
         setUploadResult({
           success: false,
-          message: data.error || "Failed to upload CSV",
-          warnings: data.details,
+          message: data.error || "Failed to upload data",
         });
-        toast.error(data.error || "Failed to upload CSV");
+        toast.error(data.error || "Failed to upload data");
       }
     } catch (error) {
       console.error("Upload error:", error);
