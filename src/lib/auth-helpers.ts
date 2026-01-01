@@ -9,7 +9,10 @@ import { redirect } from "next/navigation";
  */
 export async function getSession() {
   const cookieStore = await cookies();
-  const cookieToken = cookieStore.get("better-auth.session_token")?.value;
+  // Better Auth adds __Secure- prefix in production (HTTPS)
+  const cookieToken =
+    cookieStore.get("__Secure-better-auth.session_token")?.value ||
+    cookieStore.get("better-auth.session_token")?.value;
 
   console.log("[AUTH DEBUG] Cookie token:", cookieToken ? "EXISTS" : "MISSING");
   console.log("[AUTH DEBUG] All cookies:", cookieStore.getAll().map(c => c.name));
