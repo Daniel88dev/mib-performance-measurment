@@ -22,7 +22,10 @@ export async function middleware(request: NextRequest) {
 
   // Check for session token - if it exists, let the page handle validation
   // Middleware in Edge Runtime can't easily query database
-  const sessionToken = request.cookies.get("better-auth.session_token")?.value;
+  // Better Auth adds __Secure- prefix in production (HTTPS)
+  const sessionToken =
+    request.cookies.get("__Secure-better-auth.session_token")?.value ||
+    request.cookies.get("better-auth.session_token")?.value;
 
   if (!sessionToken) {
     return NextResponse.redirect(new URL("/sign-in", request.url));
